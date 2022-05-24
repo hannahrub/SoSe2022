@@ -3,7 +3,7 @@ create database miniproject;
 create table personas (id int primary key, phone varchar(25), address varchar(50), fname varchar(25), lname varchar(25), dna varchar(32));
                         
 create table investigator (id int primary key, department varchar(25), rank int check (rank > 0 and rank < 5),               -- cases is a derived attribute, add this maybe
-                        foreign key (id) references personas);                                                               -- must have hash dna
+                        foreign key (id) references personas);                                                                      -- must have hash dna
 
 create table suspect (id int primary key, height int, haircolor varchar(25), eyecolor varchar(25),          
                         foreign key (id) references personas);
@@ -36,8 +36,8 @@ create view investigator_cases as
                             from works group by investigator_id;
 
 alter table personas add constraint dna 
-    check (dna not null or 
-    exists(select p.id from personas p, suspect s where p.id = s.id));
+    check (dna != null or -- cannot use subquery in check constraint
+    exists(select p.id from personas p, suspect s where p.id = s.id)); 
 
 
 -- sudo su - postgres -c 'psql'
