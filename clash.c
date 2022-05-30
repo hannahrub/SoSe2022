@@ -68,37 +68,38 @@ static int executeCmd(char **tokenArray){         // tokenarray[0] is command, r
     int status;
     int background = 0;
     int i;
-    char * specialFunctions[] = {"cd", "&", "ps", "eof"} // list of all the functions our console should cover
+    // specialFunctions = {"cd", "&", "ps", "eof"} // list of all the functions our console should cover
     
     // find out if it is going to be a subprocess
-    for(i =0; tokenArray[i] != NULL; i++);          // for some reason this is allowed (we use this to get the length of tokenArray)
+    for(i =0; tokenArray[i] != 
+    
+    
+    NULL; i++){continue;};          // for some reason this is allowed (we use this to get the length of tokenArray)
 
 // find out if a special command is used
 
     if(strcmp(tokenArray[i-1], "&") == 0){          // if last token is '&' then we got ourselves a good old background process
         background = 1;
         tokenArray[i-1] = NULL; // delete background flag to not cause wrong output
-    };
-
-    
+    }
     else if(!strcmp(tokenArray[0], "cd")){
         // todo: change directory
         const char* onlyCommand = *tokenArray + 1; // kinda skip the command
-        chdirReturn = chdir(onlyCommand);
+        int chdirReturn  = chdir(onlyCommand);
         if(chdirReturn == -1){
             die("chdir failed");
         }
-        return;
+        return 2; // todo give this useful returns
     }
 
     else if(!strcmp(tokenArray[0], "ps")){
         // todo: do stuff
-         return;
+         return 2;
     }
 
     else if(!strcmp(tokenArray[0], "EOF")){ // todo: must this be small
         // todo: change directory
-         return;
+         return 2;
     }
 
     // if we haven#t returned already we execute a normal prompt
