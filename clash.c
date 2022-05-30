@@ -5,7 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <unistd.h>
+//#include <unistd.h>
 // upon starting program:
 // display directory
 
@@ -66,18 +66,44 @@ static char **processInput(){
 
 static int executeCmd(char **tokenArray){         // tokenarray[0] is command, rest of tokenarray are arguments
     int status;
-    int background = false;
+    int background = 0;
     int i;
+    char * specialFunctions[] = {"cd", "&", "ps", "eof"} // list of all the functions our console should cover
     
     // find out if it is going to be a subprocess
     for(i =0; tokenArray[i] != NULL; i++);          // for some reason this is allowed (we use this to get the length of tokenArray)
 
+// find out if a special command is used
+
     if(strcmp(tokenArray[i-1], "&") == 0){          // if last token is '&' then we got ourselves a good old background process
-        background = true;
+        background = 1;
+        tokenArray[i-1] = NULL; // delete background flag to not cause wrong output
     };
 
-    pid_t child = fork();
-    //printf("we should be executing rn \n");
+    
+    else if(!strcmp(tokenArray[0], "cd")){
+        // todo: change directory
+        const char* onlyCommand = *tokenArray + 1; // kinda skip the command
+        chdirReturn = chdir(onlyCommand);
+        if(chdirReturn == -1){
+            die("chdir failed");
+        }
+        return;
+    }
+
+    else if(!strcmp(tokenArray[0], "ps")){
+        // todo: do stuff
+         return;
+    }
+
+    else if(!strcmp(tokenArray[0], "EOF")){ // todo: must this be small
+        // todo: change directory
+         return;
+    }
+
+    // if we haven#t returned already we execute a normal prompt
+
+    pid_t child = fork(); // create child proces. returns child's pid
 
     // idea: when we fork, we have two frolocking processes who both go through the if thingies below independently, 
     // thats why the child execs and terminates invisibly
