@@ -6,6 +6,13 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include "plist.h"
+
+
+// todo: put collect all somewhere. 
+
+
 // upon starting program:
 // display directory
 
@@ -21,6 +28,11 @@
 
 // compile this file with: gcc -std=c11 -pedantic -D_XOPEN_SOURCE=700 -Wall -Werror -o clash clash.c, execute with ./clash
 
+struct Command{
+    char **tokenArray; // array with all the tokens stored seperately
+    char *cmdLine;     // the unchanged input from stdin
+};
+typedef struct Command Command; 
 
 
 static void die(const char *msg) {                  // this one handles errors and displays a fitting error message
@@ -28,8 +40,13 @@ static void die(const char *msg) {                  // this one handles errors a
     exit(EXIT_FAILURE);
 }
 
+int printProcesses(pid_t processId, const char * process){ // this is the print func we need in walkList in the plist file
+    printf("[%d] %s \n", processId, process);
+    return 0;
+}
+
 static void getDir(){
-    char cwd[4096];                                 // max filesystem pathlength is  usually 4096
+    char cwd[4096];                                 // max filesystem pathlength is usually 4096 say smart people on the internet
     if (getcwd(cwd, sizeof(cwd)) != 0){
         printf(">>> %s\n", cwd);
     }
@@ -38,7 +55,7 @@ static void getDir(){
     }
 }
 
-static char **processInput(){
+static Command processInput(){
     char ** tokenArray = malloc(1);                 // an array containing pointers to all of the tokens
     int tokenCounter = 0;
     static char newInput[1337];                     // create Array with max length of input (taken from aufgabenstellung)
@@ -60,23 +77,28 @@ static char **processInput(){
 
     }while (token != NULL);                             //todo: does this have to be a do while func? maybe, because all token thingies end with 0???????????????
 
-    return tokenArray;
+    Command newCmd;
+    newCmd.tokenArray = tokenArray;
+    newCmd.cmdLine = newInput;
+    return newCmd;
 }
+// do i have to make a save of newInput or does strtok leave it alone???????????ß
 
 
-static int executeCmd(char **tokenArray){         // tokenarray[0] is command, rest of tokenarray are arguments
+
+static int executeCmd(Command execCmd){         // tokenarray[0] is command, rest of tokenarray are arguments
     int status;
     int background = 0;
     int i;
+
+    char **tokenArray = execCmd.tokenArray;
+    char *rawInput = execCmd.cmdLine;
     // specialFunctions = {"cd", "&", "ps", "eof"} // list of all the functions our console should cover
     
     // find out if it is going to be a subprocess
-    for(i =0; tokenArray[i] != 
-    
-    
-    NULL; i++){continue;};          // for some reason this is allowed (we use this to get the length of tokenArray)
+    for(i =0; tokenArray[i] != NULL; i++){continue;};          // for some reason this is allowed (we use this to get the length of tokenArray)
 
-// find out if a special command is used
+    // find out if a special command is used
 
     if(strcmp(tokenArray[i-1], "&") == 0){          // if last token is '&' then we got ourselves a good old background process
         background = 1;
@@ -93,13 +115,13 @@ static int executeCmd(char **tokenArray){         // tokenarray[0] is command, r
     }
 
     else if(!strcmp(tokenArray[0], "ps")){
-        // todo: do stuff
+        walkList(printProcesses); 
          return 2;
     }
 
     else if(!strcmp(tokenArray[0], "EOF")){ // todo: must this be small
-        // todo: change directory
-         return 2;
+        exit(0); 
+         return 0;
     }
 
     // if we haven#t returned already we execute a normal prompt
@@ -111,28 +133,33 @@ static int executeCmd(char **tokenArray){         // tokenarray[0] is command, r
     // and the status is always set, because at some point in time, the parent will go through the if clauses and enter the else part.
 
     if (child == -1){
-        // awesome error handling here
-        printf("something is foul in the state of denmark \n");
+        die("something went wrong with fork()");
     }
     else if(child == 0){             // current process is child process
         if(background){
-            int execution = execv(tokenArray[0], tokenArray);   // execv doesn't write into the console -> background process
-            if(execution == -1){ printf(" OH NO CHILD LIVES \n");}
-            
-        }
+            int execution = execvp(tokenArray[0], tokenArray);   // execv doesn't write into the console -> background process
+            if(execution == -1){ 
+                die("something went wrong with execvp() in a background process");
+            }
         else{
             int execution = execvp(tokenArray[0], tokenArray);      // execvp(command aka token 0, allesauchcommand aka alle tokens), exec returns -1 if it failed, else it doesnt return at all
-            if(execution == -1){ printf(" OH NO CHILD LIVES \n");}
+            if(execution == -1){
+                die("something went wrong with execvp in the foreground");
+            }
         printf("child executed");
         }
-        // just put error handling here
         exit(EXIT_SUCCESS);                   // void exit(int status) EXIT_SUCCESS = 0, EXIT_FAILURE != 0, usually 1         
                                                // exit frees all resources the process allocated, process becomes zombie
+        }
     }
 
     else{        // we are parent process
+        insertElement(child, rawInput); // insert child process into process list from plist
+        
         if(!background){
             waitpid(child, &status, WUNTRACED | WCONTINUED);     // waitpid(processID (pid_t), adress of status with which child has exited (integer), misc options from stack overflow)
+            removeElement(child, NULL, 0); // we waited for child process to be done, now it gets removed from active processes list
+            printf("Exitstatus [%s] %d", rawInput, status);      
         }
         else{ // if its a background process we don't wait for it to terminate
             // add process to plist 
@@ -147,7 +174,7 @@ int main(int argc, char **argv)
 {
     while(1){
         getDir();
-        char **input = processInput();
+        Command input = processInput();
         executeCmd(input);
 
     }
